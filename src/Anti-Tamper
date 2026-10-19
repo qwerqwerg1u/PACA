@@ -797,7 +797,7 @@ do
         elseif entry.name == "new" then
             fn = t12[n]
         elseif entry.name == "Disconnect" then
-            n2 += 1
+            n2 = n2 + 1
             fn = connections[n2].Disconnect
         elseif entry.name == "WaitForChild" then
             fn = folderParent.WaitForChild
