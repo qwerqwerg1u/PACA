@@ -19,8 +19,8 @@ const initialSource = `local message = "Hello, World!"
 print(message)`
 
 const ANTI_TAMPER_URLS = [
-  "https://raw.githubusercontent.com/yunjun3737-ship-it/Prometheus/main/paca_antitamper.lua",
-  "https://raw.githubusercontent.com/yunjun3737-ship-it/Prometheus/main/src/paca_antitamper.lua",
+  "https://raw.githubusercontent.com/yunjun3737-ship-it/Prometheus/main/src/Anti-Tamper",
+  "https://raw.githubusercontent.com/yunjun3737-ship-it/Prometheus/main/src/Anti-Tamper",
 ]
 
 const styles = `
