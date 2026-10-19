@@ -91,11 +91,27 @@ function NumbersToExpressions:init(_)
 			)
 		end,
 
-		function(val, depth) -- Modulo
+				function(val, depth) -- Modulo
 			local lhs, rhs = generateModuloExpression(val)
-			if tonumber(tostring(lhs)) % tonumber(tostring(rhs)) ~= val then
+			local lhsNum = tonumber(tostring(lhs))
+			local rhsNum = tonumber(tostring(rhs))
+
+			if lhsNum == nil or rhsNum == nil then
 				return false
 			end
+
+			if rhsNum == 0
+				or lhsNum ~= lhsNum
+				or rhsNum ~= rhsNum
+				or math.abs(lhsNum) == math.huge
+				or math.abs(rhsNum) == math.huge then
+				return false
+			end
+
+			if lhsNum % rhsNum ~= val then
+				return false
+			end
+
 			return Ast.ModExpression(
 				self:CreateNumberExpression(lhs, depth),
 				self:CreateNumberExpression(rhs, depth),
