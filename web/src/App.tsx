@@ -14,7 +14,7 @@ function GithubMark({ className }: { className?: string }) {
     </svg>
   )
 }
-import { useEffect, useRef, useState, type ChangeEvent } from "react"
+import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 
 import { CodeEditor } from "@/components/CodeEditor"
@@ -66,7 +66,7 @@ function downloadLua(output: string) {
   link.href = url
   link.download = "prometheus.obfuscated.lua"
   link.click()
-  URL.revokeObjectURL(url)
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
 function formatWorkerError(event: ErrorEvent): string {
@@ -128,7 +128,7 @@ export default function App() {
   const [activeJob, setActiveJob] = useState<ActiveJob>("idle")
   const [copied, setCopied] = useState(false)
   const [lastObfuscation, setLastObfuscation] = useState<LastObfuscation | null>(null)
-  const workerRef = useRef<Worker | null>(null)\n  const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const workerRef = useRef<Worker | null>(null)
   const requestIdRef = useRef(0)
   const workerUrlRef = useRef<string>("")
   const autoShareLoadedRef = useRef(false)
@@ -426,29 +426,6 @@ export default function App() {
     toast.error("Script execution failed")
   }
 
-  async function loadSourceFile(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0]
-    event.target.value = ""
-    if (!file) return
-
-    const filename = file.name.toLowerCase()
-    if (!filename.endsWith(".lua") && !filename.endsWith(".luau") && !filename.endsWith(".txt")) {
-      toast.error("Choose a .lua, .luau, or .txt file")
-      return
-    }
-
-    try {
-      const text = await file.text()
-      setSource(text)
-      setOutput("")
-      setLogs([])
-      setLastObfuscation(null)
-      toast.success(`Loaded ${file.name}`)
-    } catch {
-      toast.error("Could not read the selected file")
-    }
-  }
-
   async function copyOutput() {
     if (!canExport) {
       return
@@ -547,18 +524,6 @@ export default function App() {
                 Docs
                 <BookText className="size-3.5" />
               </a>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".lua,.luau,.txt,text/plain"
-                className="hidden"
-                onChange={loadSourceFile}
-                aria-label="Choose Lua source file"
-              />
-              <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={isBusy}>
-                <Upload />
-                Upload
-              </Button>
               <Button onClick={isObfuscating ? stopCurrentJob : () => void obfuscate()} disabled={isBusy && !isObfuscating} className="min-w-32">
                 {isObfuscating ? <Loader2 className="animate-spin" /> : <Play />}
                 {isObfuscating ? "Stop" : "Obfuscate"}
@@ -662,6 +627,35 @@ export default function App() {
             ) : null}
           </div>
         </section>
+
+        <div className="mx-auto flex w-full max-w-[1600px] items-center px-4 pt-3">
+          <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm font-medium transition-colors hover:bg-accent">
+            <Upload className="size-4" />
+            Lua 파일 업로드
+            <input
+              type="file"
+              accept=".lua,.luau,.txt,text/plain"
+              className="hidden"
+              disabled={isBusy}
+              onChange={async (event) => {
+                const file = event.currentTarget.files?.[0]
+                if (!file) return
+                try {
+                  const text = await file.text()
+                  setSource(text)
+                  setOutput("")
+                  setLogs([])
+                  setLastObfuscation(null)
+                  toast.success(`파일 불러옴: ${file.name}`)
+                } catch {
+                  toast.error("파일을 읽지 못했습니다.")
+                } finally {
+                  event.currentTarget.value = ""
+                }
+              }}
+            />
+          </label>
+        </div>
 
         <section className="mx-auto grid min-h-0 w-full max-w-[1600px] flex-1 gap-3 overflow-hidden px-4 py-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_340px]">
           <CodeEditor
