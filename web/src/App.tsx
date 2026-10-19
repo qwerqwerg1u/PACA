@@ -1,4 +1,4 @@
-import { BookText, Check, Copy, Download, FileCode2, Loader2, Play, RotateCcw, Share2, Square, TriangleAlert } from "lucide-react"
+import { BookText, Check, Copy, Download, FileCode2, Loader2, Play, RotateCcw, Share2, Square, TriangleAlert, Upload } from "lucide-react"
 
 // Inline GitHub mark (Lucide removed the branded `Github` icon in v1).
 function GithubMark({ className }: { className?: string }) {
@@ -14,7 +14,7 @@ function GithubMark({ className }: { className?: string }) {
     </svg>
   )
 }
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, type ChangeEvent } from "react"
 import { toast } from "sonner"
 
 import { CodeEditor } from "@/components/CodeEditor"
@@ -128,7 +128,7 @@ export default function App() {
   const [activeJob, setActiveJob] = useState<ActiveJob>("idle")
   const [copied, setCopied] = useState(false)
   const [lastObfuscation, setLastObfuscation] = useState<LastObfuscation | null>(null)
-  const workerRef = useRef<Worker | null>(null)
+  const workerRef = useRef<Worker | null>(null)\n  const fileInputRef = useRef<HTMLInputElement | null>(null)
   const requestIdRef = useRef(0)
   const workerUrlRef = useRef<string>("")
   const autoShareLoadedRef = useRef(false)
@@ -426,6 +426,29 @@ export default function App() {
     toast.error("Script execution failed")
   }
 
+  async function loadSourceFile(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    event.target.value = ""
+    if (!file) return
+
+    const filename = file.name.toLowerCase()
+    if (!filename.endsWith(".lua") && !filename.endsWith(".luau") && !filename.endsWith(".txt")) {
+      toast.error("Choose a .lua, .luau, or .txt file")
+      return
+    }
+
+    try {
+      const text = await file.text()
+      setSource(text)
+      setOutput("")
+      setLogs([])
+      setLastObfuscation(null)
+      toast.success(`Loaded ${file.name}`)
+    } catch {
+      toast.error("Could not read the selected file")
+    }
+  }
+
   async function copyOutput() {
     if (!canExport) {
       return
@@ -524,6 +547,18 @@ export default function App() {
                 Docs
                 <BookText className="size-3.5" />
               </a>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".lua,.luau,.txt,text/plain"
+                className="hidden"
+                onChange={loadSourceFile}
+                aria-label="Choose Lua source file"
+              />
+              <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={isBusy}>
+                <Upload />
+                Upload
+              </Button>
               <Button onClick={isObfuscating ? stopCurrentJob : () => void obfuscate()} disabled={isBusy && !isObfuscating} className="min-w-32">
                 {isObfuscating ? <Loader2 className="animate-spin" /> : <Play />}
                 {isObfuscating ? "Stop" : "Obfuscate"}
