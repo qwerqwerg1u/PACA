@@ -43,15 +43,16 @@ local CALLABLE_PREFIX_EXPRESSION_LOOKUP = lookupify{
 
 local function generateError(self, message)
 	local token;
-	if(self.index > self.length) then
-		token = self.tokens[self.length];
-	elseif(self.index < 1) then
+	if(self.index < 1) then
 		return "Parsing Error at Position 0:0, " .. message;
-	else
-		token = self.tokens[self.index];
 	end
-
-	return "Parsing Error at Position " .. tostring(token.line) .. ":" .. tostring(token.linePos) .. ", " .. message;
+	token = self.tokens[self.index]
+	if not token then
+		token = Tokenizer.EOF_TOKEN
+	end
+	local line = token.line or 0
+	local linePos = token.linePos or 0
+	return "Parsing Error at Position " .. tostring(line) .. ":" .. tostring(linePos) .. ", " .. message;
 end
 
 local function generateWarning(token, message)
@@ -142,27 +143,36 @@ end
 
 -- Parse the given code to an Abstract Syntax Tree
 function Parser:parse(code)
-	self.tokenizer:append(code);
-	self.tokens = self.tokenizer:scanAll();
-	self.length = #self.tokens;
+	-- Always start from a clean state, including after a previous failed parse.
+	self.tokenizer:reset()
+	self.tokens = {}
+	self.index = 0
+	self.length = 0
+	self.disableLog = false
 
-	-- Create Global Variable Scope
-	local globalScope = Scope:newGlobal();
+	local ok, result = pcall(function()
+		self.tokenizer:append(code)
+		self.tokens = self.tokenizer:scanAll()
+		self.length = #self.tokens
+		self.index = 0
 
-	local ast = Ast.TopNode(self:block(globalScope, false), globalScope);
-	-- File Must be Over when Top Node is Fully Parsed
-	expect(self, TokenKind.Eof);
+		local globalScope = Scope:newGlobal()
+		local ast = Ast.TopNode(self:block(globalScope, false), globalScope)
+		expect(self, TokenKind.Eof)
+		return ast
+	end)
 
-	logger:debug("Cleaning up Parser for next Use ...")
-	-- Clean Up
-	self.tokenizer:reset();
-	self.tokens = {};
-	self.index = 0;
-	self.length = 0;
+	-- Do not leave stale tokens or tokenizer state if parsing fails.
+	self.tokenizer:reset()
+	self.tokens = {}
+	self.index = 0
+	self.length = 0
+	self.disableLog = false
 
-	logger:debug("Cleanup Done")
-
-	return ast;
+	if not ok then
+		error(result, 0)
+	end
+	return result
 end
 
 -- Parse a Code Block
@@ -773,7 +783,7 @@ function Parser:functionArgList(scope)
 				return args;
 			end
 
-			ident = get(self);
+			ident = expect(self, TokenKind.Ident);
 			name = ident.value;
 
 			id = scope:addVariable(name, ident);
@@ -941,7 +951,7 @@ function Parser:expressionLiteral(scope)
 	end
 
 	-- IfElse
-	if(LuaVersion.LuaU) then
+	if(self.luaVersion == LuaVersion.LuaU) then
 		if(consume(self, TokenKind.Keyword, "if")) then
 			local condition = self:expression(scope);
 			expect(self, TokenKind.Keyword, "then");
@@ -977,6 +987,10 @@ function Parser:tableConstructor(scope)
 	expect(self, TokenKind.Symbol, "{");
 
 	while (not consume(self, TokenKind.Symbol, "}")) do
+		if is(self, TokenKind.Eof) then
+			if self.disableLog then error() end
+			logger:error(generateError(self, 'unexpected end of input; expected "}"'))
+		end
 		if(consume(self, TokenKind.Symbol, "[")) then
 			local key = self:expression(scope);
 			expect(self, TokenKind.Symbol, "]");
