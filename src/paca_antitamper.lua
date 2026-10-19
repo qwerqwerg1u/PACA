@@ -1,4 +1,4 @@
--- PACA V14.7 Anti-Tamper | Generated from Lua Land Hub | .gg/Zame2JAGDr
+-- PACA V14.7 Anti-Tamper | 
 		
 do
     local function detected(reason)
@@ -1130,6 +1130,6 @@ do
         "compile:result")
 
     runChecks()
-    print("You Passed")
+    --print("You Passed")
 
 end
