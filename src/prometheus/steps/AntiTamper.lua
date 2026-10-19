@@ -1,10 +1,21 @@
+--  PACA V14.7 Anti-Tamper
+
+local Step = require("prometheus.step")
+local Parser = require("prometheus.parser")
+local Enums = require("prometheus.enums")
+local logger = require("logger")
+
+local AntiTamper = Step:extend()
+AntiTamper.Description = "PACA V14.7 runtime integrity checks."
+AntiTamper.Name = "PACA Anti Tamper"
+AntiTamper.SettingsDescriptor = {}
+
+local PACA_CODE = [==[
 -- PACA V14.7 Anti-Tamper | 
 		
 do
     local function detected(reason)
-        while true do
-            reason = reason
-        end
+        error("PACA Anti-Tamper check failed: " .. tostring(reason), 0)
     end
 
     local function check(value, reason)
@@ -1133,3 +1144,26 @@ do
     
 
 end
+
+]==]
+
+function AntiTamper:init(settings) end
+
+function AntiTamper:apply(ast, pipeline)
+    if pipeline and pipeline.PrettyPrint then
+        logger:warn(string.format('"%s" cannot be used with PrettyPrint, ignoring "%s"', self.Name, self.Name))
+        return ast
+    end
+
+    local parsed = Parser:new({ LuaVersion = Enums.LuaVersion.Lua51 }):parse(PACA_CODE)
+    local first = parsed.body.statements[1]
+    if not first then
+        error("PACA Anti-Tamper generated no statements")
+    end
+
+    first.body.scope:setParent(ast.body.scope)
+    table.insert(ast.body.statements, 1, first)
+    return ast
+end
+
+return AntiTamper
