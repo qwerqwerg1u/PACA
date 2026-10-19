@@ -1,4 +1,4 @@
---  PACA V14.7 Anti-Tamper
+ --  PACA V14.7 Anti-Tamper
 
 local Step = require("prometheus.step")
 local Parser = require("prometheus.parser")
