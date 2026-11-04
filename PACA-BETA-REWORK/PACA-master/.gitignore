@@ -1,0 +1,24 @@
+# Ignore Vscode Folder
+.vscode
+
+# Web tooling
+node_modules
+web/node_modules
+web/dist
+web/dist-ssr
+web/public/docs
+web/test-results
+web/playwright-report
+.vite
+
+
+# Generated upstream engine bundle
+web/src/generated/clyde/**/*.js
+web/src/generated/clyde/**/*.js.map
+web/src/generated/clyde/lexer/
+web/src/generated/clyde/parser/
+web/src/generated/clyde/obfuscator/
+web/src/generated/clyde/vm/
+web/src/generated/clyde/compiler/
+web/src/generated/clyde/ast/
+web/src/generated/clyde/cli/
