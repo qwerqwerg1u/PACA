@@ -2,7 +2,7 @@
 
 PACA is a browser-based Lua/Luau obfuscator with two separate engines:
 
-- **Luau:** the upstream Obscura parser, AST transformations, and VM pipeline, loaded in-browser through Pyodide.
+- **Luau:** It was created by a creator named Alpha and is currently in beta. 
 - **Lua 5.1:** the existing Prometheus-derived Lua pipeline running through Wasmoon.
 
 ## GitHub Pages build
