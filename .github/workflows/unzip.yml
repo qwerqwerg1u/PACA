@@ -18,18 +18,24 @@ jobs:
         with:
           ref: ${{ github.ref_name }}
 
-      - name: Extract ZIP files
+      - name: Extract all ZIP files
         shell: bash
         run: |
-          shopt -s nullglob
+          set -e
 
-          for file in *.zip; do
+          mapfile -d '' archives < <(
+            find . -path './.git' -prune -o -type f -iname '*.zip' -print0
+          )
+
+          for file in "${archives[@]}"; do
             echo "Extracting: $file"
 
             temp=$(mktemp -d)
             unzip -oq "$file" -d "$temp"
 
-            entries=("$temp"/* "$temp"/.[!.]*)
+            mapfile -d '' entries < <(
+              find "$temp" -mindepth 1 -maxdepth 1 -print0
+            )
 
             if [ ${#entries[@]} -eq 1 ] && [ -d "${entries[0]}" ]; then
               cp -a "${entries[0]}"/. .
@@ -45,6 +51,10 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
           git add -A
-          git diff --cached --quiet || git commit -m "Automatically extract ZIP files"
-          git push
+
+          if ! git diff --cached --quiet; then
+            git commit -m "Automatically extract ZIP files"
+            git push
+          fi
