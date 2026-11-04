@@ -3,6 +3,8 @@ name: Auto Extract ZIP
 
 on:
   push:
+    paths:
+      - '**.zip'
   workflow_dispatch:
 
 permissions:
@@ -14,47 +16,67 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: ${{ github.ref_name }}
 
-      - name: Extract all ZIP files
+      - name: Extract ZIP files
         shell: bash
         run: |
-          set -e
+          python3 <<'PY'
+          import zipfile
+          import pathlib
+          import shutil
+          import tempfile
 
-          mapfile -d '' archives < <(
-            find . -path './.git' -prune -o -type f -iname '*.zip' -print0
-          )
+          root = pathlib.Path(".").resolve()
+          archives = [
+              p for p in root.rglob("*.zip")
+              if ".git" not in p.parts
+          ]
 
-          for file in "${archives[@]}"; do
-            echo "Extracting: $file"
+          if not archives:
+              raise SystemExit("No ZIP files found")
 
-            temp=$(mktemp -d)
-            unzip -oq "$file" -d "$temp"
+          for archive in archives:
+              print(f"Extracting: {archive}")
 
-            mapfile -d '' entries < <(
-              find "$temp" -mindepth 1 -maxdepth 1 -print0
-            )
+              with tempfile.TemporaryDirectory() as temp:
+                  temp = pathlib.Path(temp)
 
-            if [ ${#entries[@]} -eq 1 ] && [ -d "${entries[0]}" ]; then
-              cp -a "${entries[0]}"/. .
-            else
-              cp -a "$temp"/. .
-            fi
+                  with zipfile.ZipFile(archive) as z:
+                      for item in z.infolist():
+                          target = (temp / item.filename).resolve()
+                          if not target.is_relative_to(temp.resolve()):
+                              raise ValueError("Unsafe ZIP path")
+                      z.extractall(temp)
 
-            rm -rf "$temp"
-            rm -f "$file"
-          done
+                  entries = list(temp.iterdir())
 
-      - name: Commit extracted files
+                  if len(entries) == 1 and entries[0].is_dir():
+                      source = entries[0]
+                  else:
+                      source = temp
+
+                  for item in source.iterdir():
+                      destination = root / item.name
+
+                      if item.is_dir():
+                          shutil.copytree(
+                              item, destination,
+                              dirs_exist_ok=True
+                          )
+                      else:
+                          shutil.copy2(item, destination)
+
+              archive.unlink()
+              print(f"Done: {archive.name}")
+          PY
+
+      - name: Commit changes
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
           git add -A
-
-          if ! git diff --cached --quiet; then
-            git commit -m "Automatically extract ZIP files"
-            git push
-          fi
+          git diff --cached --quiet || git commit -m "Auto extract ZIP"
+          git push
