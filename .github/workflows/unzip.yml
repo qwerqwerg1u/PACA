@@ -11,17 +11,34 @@ permissions:
 jobs:
   unzip:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
 
       - name: Extract ZIP files
+        shell: bash
         run: |
-          find . -type f -name "*.zip" -print0 | while IFS= read -r -d '' file; do
-            folder="${file%.zip}"
-            mkdir -p "$folder"
-            unzip -o "$file" -d "$folder"
-            rm "$file"
+          shopt -s nullglob
+
+          for file in *.zip; do
+            echo "Extracting: $file"
+
+            temp=$(mktemp -d)
+            unzip -oq "$file" -d "$temp"
+
+            entries=("$temp"/* "$temp"/.[!.]*)
+
+            if [ ${#entries[@]} -eq 1 ] && [ -d "${entries[0]}" ]; then
+              cp -a "${entries[0]}"/. .
+            else
+              cp -a "$temp"/. .
+            fi
+
+            rm -rf "$temp"
+            rm -f "$file"
           done
 
       - name: Commit extracted files
@@ -29,5 +46,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git diff --cached --quiet || git commit -m "Auto extract ZIP"
+          git diff --cached --quiet || git commit -m "Automatically extract ZIP files"
           git push
